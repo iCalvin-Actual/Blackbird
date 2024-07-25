@@ -73,7 +73,7 @@ extension Blackbird {
             switch self {
                 case .integer: return .integer(0)
                 case .double:  return .double(0)
-                case .text:    return .text("")
+                case .text:    return .text(" ")
                 case .data:    return .data(Data())
             }
         }
