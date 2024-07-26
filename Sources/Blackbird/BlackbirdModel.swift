@@ -201,6 +201,9 @@ public protocol BlackbirdModel: Codable, Equatable, Identifiable, Hashable, Send
     /// A key-path to any `@BlackbirdColumn`-wrapped variable of this type, e.g. `\.$id` or `\.$title`.
     typealias BlackbirdColumnKeyPath = PartialKeyPath<Self>
     
+    /// Reinitialize a model given a row from the DB
+    init(_ row: Blackbird.ModelRow<Self>)
+    
     /// The table name to use in the database. By default, the type's name is used.
     static var tableName: String { get }
     
