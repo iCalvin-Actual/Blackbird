@@ -680,6 +680,7 @@ public struct BlackbirdModelColumnExpression<Model: BlackbirdModel>: Sendable, B
         case greaterThan = ">"
         case lessThanOrEqual = "<="
         case greaterThanOrEqual = ">="
+        case within = "IN"
     }
 
     internal enum UnaryOperator: String, Sendable {
