@@ -83,7 +83,7 @@ fileprivate struct DecodedStructuredQuery: Sendable {
     let tableName: String
     let cacheKey: [Blackbird.Value]?
     
-    init<T: BlackbirdModel>(operation: String = "SELECT * FROM", selectColumnSubset: [PartialKeyPath<T>]? = nil, forMulticolumnPrimaryKey: [Any]? = nil, matching: BlackbirdModelColumnExpression<T>? = nil, updating: [PartialKeyPath<T>: Sendable] = [:], orderBy: [BlackbirdModelOrderClause<T>] = [], limit: Int? = nil, updateWhereAutoOptimization: Bool = true) {
+    init<T: BlackbirdModel>(operation: String = "SELECT * FROM", selectColumnSubset: [PartialKeyPath<T>]? = nil, forMulticolumnPrimaryKey: [Any]? = nil, matching: BlackbirdModelColumnExpression<T>? = nil, updating: [PartialKeyPath<T>: Sendable] = [:], orderBy: [BlackbirdModelOrderClause<T>] = [], limit: Int? = nil, offset: Int? = nil, updateWhereAutoOptimization: Bool = true) {
         let table = SchemaGenerator.shared.table(for: T.self)
         var clauses: [String] = []
         var arguments: [Blackbird.Value] = []
@@ -176,7 +176,12 @@ fileprivate struct DecodedStructuredQuery: Sendable {
             clauses.append("ORDER BY \(orderByClause)")
         }
         
-        if let limit { clauses.append("LIMIT \(limit)") }
+        if let limit {
+            clauses.append("LIMIT \(limit)")
+            if let offset {
+                clauses.append("OFFSET \(offset)")
+            }
+        }
         
         tableName = table.name
         query = "\(operation) `\(tableName)`\(clauses.isEmpty ? "" : " \(clauses.joined(separator: " "))")"
@@ -278,8 +283,8 @@ extension BlackbirdModel {
     /// // Equivalent to:
     /// // "SELECT * FROM Post WHERE id = 123 AND title = 'Hi' ORDER BY id LIMIT 1"
     /// ```
-    public static func read(from database: Blackbird.Database, matching: BlackbirdModelColumnExpression<Self>? = nil, orderBy: BlackbirdModelOrderClause<Self> ..., limit: Int? = nil) async throws -> [Self] {
-        let decoded = DecodedStructuredQuery(matching: matching, orderBy: orderBy, limit: limit)
+    public static func read(from database: Blackbird.Database, matching: BlackbirdModelColumnExpression<Self>? = nil, orderBy: BlackbirdModelOrderClause<Self> ..., limit: Int? = nil, offset: Int? = nil) async throws -> [Self] {
+        let decoded = DecodedStructuredQuery(matching: matching, orderBy: orderBy, limit: limit, offset: offset)
         return try await _cacheableStructuredResult(database: database, decoded: decoded) { database in
             try await _queryInternal(in: database, decoded.query, arguments: decoded.arguments).map {
                 let decoder = BlackbirdSQLiteDecoder(database: database, row: $0.row)
@@ -680,7 +685,6 @@ public struct BlackbirdModelColumnExpression<Model: BlackbirdModel>: Sendable, B
         case greaterThan = ">"
         case lessThanOrEqual = "<="
         case greaterThanOrEqual = ">="
-        case within = "IN"
     }
 
     internal enum UnaryOperator: String, Sendable {
