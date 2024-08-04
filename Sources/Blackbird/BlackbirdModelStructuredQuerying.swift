@@ -747,7 +747,7 @@ public struct BlackbirdModelColumnExpression<Model: BlackbirdModel>: Sendable, B
         BlackbirdModelColumnExpression<T>(column: columnKeyPath, sqlOperator: .isNotNull)
     }
 
-    static func equals<T: BlackbirdModel>(_ columnKeyPath: T.BlackbirdColumnKeyPath, _ value: Sendable) -> BlackbirdModelColumnExpression<T> {
+    public static func equals<T: BlackbirdModel>(_ columnKeyPath: T.BlackbirdColumnKeyPath, _ value: Sendable) -> BlackbirdModelColumnExpression<T> {
         BlackbirdModelColumnExpression<T>(column: columnKeyPath, sqlOperator: .equal, value: value)
     }
 
