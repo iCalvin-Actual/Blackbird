@@ -726,7 +726,7 @@ public struct BlackbirdModelColumnExpression<Model: BlackbirdModel>: Sendable, B
     }
 
     init(lhs: BlackbirdModelColumnExpression<Model>, sqlOperator: CombiningOperator, rhs: BlackbirdModelColumnExpression<Model>) {
-        expression = BlackbirdCombiningExpression(lhs: lhs, rhs: rhs, sqlOperator: sqlOperator)
+        expression = BlackbirdJoiningExpression(lhs: lhs, rhs: rhs, sqlOperator: sqlOperator)
     }
 
     init(not expression: BlackbirdModelColumnExpression<Model>) {
@@ -735,6 +735,10 @@ public struct BlackbirdModelColumnExpression<Model: BlackbirdModel>: Sendable, B
 
     init(expressionLiteral: String, arguments: [Sendable]) {
         expression = BlackbirdColumnLiteralExpression(literal: expressionLiteral, arguments: arguments)
+    }
+    
+    init(_ expressions: [BlackbirdModelColumnExpression<Model>]) {
+        expression = BlackbirdCombiningExpression(expressions: expressions)
     }
 
     init() {
@@ -785,6 +789,10 @@ public struct BlackbirdModelColumnExpression<Model: BlackbirdModel>: Sendable, B
 
     static func not<T: BlackbirdModel>(_ expression: BlackbirdModelColumnExpression<T>) -> BlackbirdModelColumnExpression<T> {
         BlackbirdModelColumnExpression<T>(not: expression)
+    }
+    
+    public static func combining<T: BlackbirdModel>(_ expressions: [BlackbirdModelColumnExpression<T>]) -> BlackbirdModelColumnExpression<T> {
+        BlackbirdModelColumnExpression<T>(expressions)
     }
     
     /// Specify an `IN` condition to be used in a `WHERE` clause.
@@ -950,6 +958,23 @@ internal struct BlackbirdColumnNotExpression<T: BlackbirdModel>: BlackbirdQueryE
 }
 
 internal struct BlackbirdCombiningExpression<T: BlackbirdModel>: BlackbirdQueryExpression {
+    let expressions: [BlackbirdModelColumnExpression<T>]
+    
+    func compile(table: Blackbird.Table, queryingFullTextIndex: Bool) -> (whereClause: String?, values: [Blackbird.Value]) {
+        let compiledExpressions = expressions.map({
+            $0.compile(table: table, queryingFullTextIndex: queryingFullTextIndex)
+        })
+        
+        let wheres = compiledExpressions.compactMap({ $0.whereClause }).joined(separator: " AND ")
+        let values = compiledExpressions.reduce([]) { partialResult, model in
+            return partialResult + model.values
+        }
+        
+        return (whereClause: wheres, values: values)
+    }
+}
+
+internal struct BlackbirdJoiningExpression<T: BlackbirdModel>: BlackbirdQueryExpression {
     let lhs: BlackbirdQueryExpression
     let rhs: BlackbirdQueryExpression
     let sqlOperator: BlackbirdModelColumnExpression<T>.CombiningOperator
