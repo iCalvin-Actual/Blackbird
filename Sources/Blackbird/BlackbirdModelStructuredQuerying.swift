@@ -708,9 +708,13 @@ public struct BlackbirdModelColumnExpression<Model: BlackbirdModel>: Sendable, B
     init(column: Model.BlackbirdColumnKeyPath, sqlOperator: BinaryOperator, value: Sendable) {
         expression = BlackbirdColumnBinaryExpression(column: column, sqlOperator: sqlOperator, value: value)
     }
-
+    
     init(column: Model.BlackbirdColumnKeyPath, valueIn values: [Sendable]) {
         expression = BlackbirdColumnInExpression(column: column, values: values)
+    }
+    
+    init(column: Model.BlackbirdColumnKeyPath, valueNotIn values: [Sendable]) {
+        expression = BlackbirdColumnNotInExpression(column: column, values: values)
     }
 
     init(column: Model.BlackbirdColumnKeyPath, valueLike pattern: String) {
@@ -763,11 +767,11 @@ public struct BlackbirdModelColumnExpression<Model: BlackbirdModel>: Sendable, B
         BlackbirdModelColumnExpression<T>(column: columnKeyPath, sqlOperator: .greaterThan, value: value)
     }
 
-    static func lessThanOrEqual<T: BlackbirdModel>(_ columnKeyPath: T.BlackbirdColumnKeyPath, _ value: Sendable) -> BlackbirdModelColumnExpression<T> {
+    public static func lessThanOrEqual<T: BlackbirdModel>(_ columnKeyPath: T.BlackbirdColumnKeyPath, _ value: Sendable) -> BlackbirdModelColumnExpression<T> {
         BlackbirdModelColumnExpression<T>(column: columnKeyPath, sqlOperator: .lessThanOrEqual, value: value)
     }
 
-    static func greaterThanOrEqual<T: BlackbirdModel>(_ columnKeyPath: T.BlackbirdColumnKeyPath, _ value: Sendable) -> BlackbirdModelColumnExpression<T> {
+    public static func greaterThanOrEqual<T: BlackbirdModel>(_ columnKeyPath: T.BlackbirdColumnKeyPath, _ value: Sendable) -> BlackbirdModelColumnExpression<T> {
         BlackbirdModelColumnExpression<T>(column: columnKeyPath, sqlOperator: .greaterThanOrEqual, value: value)
     }
 
@@ -782,7 +786,7 @@ public struct BlackbirdModelColumnExpression<Model: BlackbirdModel>: Sendable, B
     static func not<T: BlackbirdModel>(_ expression: BlackbirdModelColumnExpression<T>) -> BlackbirdModelColumnExpression<T> {
         BlackbirdModelColumnExpression<T>(not: expression)
     }
-
+    
     /// Specify an `IN` condition to be used in a `WHERE` clause.
     ///
     /// Example: `.valueIn(\.$id, [1, 2, 3])`
@@ -791,6 +795,17 @@ public struct BlackbirdModelColumnExpression<Model: BlackbirdModel>: Sendable, B
     ///
     /// **Warning:** Do not use with very large numbers of values. The total number of arguments in a query cannot exceed its database's ``Blackbird/Database/maxQueryVariableCount``.
     public static func valueIn<T: BlackbirdModel>(_ column: T.BlackbirdColumnKeyPath, _ values: [Sendable]) -> BlackbirdModelColumnExpression<T> {
+        BlackbirdModelColumnExpression<T>(column: column, valueIn: values)
+    }
+    
+    /// Specify an `NOT IN` condition to be used in a `WHERE` clause.
+    ///
+    /// Example: `.valueNotIn(\.$id, [1, 2, 3])`
+    ///
+    /// This would create the SQL clause: `WHERE id NOT IN (1,2,3)`
+    ///
+    /// **Warning:** Do not use with very large numbers of values. The total number of arguments in a query cannot exceed its database's ``Blackbird/Database/maxQueryVariableCount``.
+    public static func valueNotIn<T: BlackbirdModel>(_ column: T.BlackbirdColumnKeyPath, _ values: [Sendable]) -> BlackbirdModelColumnExpression<T> {
         BlackbirdModelColumnExpression<T>(column: column, valueIn: values)
     }
 
@@ -886,6 +901,17 @@ internal struct BlackbirdColumnInExpression<T: BlackbirdModel>: BlackbirdQueryEx
         let columnName = queryingFullTextIndex ? table.keyPathToFTSColumnName(keyPath: column) : table.keyPathToColumnName(keyPath: column)
         let placeholderStr = Array(repeating: "?", count: values.count).joined(separator: ",")
         return (whereClause: "`\(columnName)` IN (\(placeholderStr))", values: values.map { try! Blackbird.Value.fromAny($0) })
+    }
+}
+
+internal struct BlackbirdColumnNotInExpression<T: BlackbirdModel>: BlackbirdQueryExpression {
+    let column: T.BlackbirdColumnKeyPath
+    let values: [Sendable]
+    
+    func compile(table: Blackbird.Table, queryingFullTextIndex: Bool) -> (whereClause: String?, values: [Blackbird.Value]) {
+        let columnName = queryingFullTextIndex ? table.keyPathToFTSColumnName(keyPath: column) : table.keyPathToColumnName(keyPath: column)
+        let placeholderStr = Array(repeating: "?", count: values.count).joined(separator: ",")
+        return (whereClause: "`\(columnName)` NOT IN (\(placeholderStr))", values: values.map { try! Blackbird.Value.fromAny($0) })
     }
 }
 
