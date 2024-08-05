@@ -745,7 +745,10 @@ public struct BlackbirdModelColumnExpression<Model: BlackbirdModel>: Sendable, B
         expression = BlackbirdColumnNoExpression()
     }
 
-    internal func compile(table: Blackbird.Table, queryingFullTextIndex: Bool) -> (whereClause: String?, values: [Blackbird.Value]) { expression.compile(table: table, queryingFullTextIndex: queryingFullTextIndex) }
+    internal func compile(table: Blackbird.Table, queryingFullTextIndex: Bool) -> (whereClause: String?, values: [Blackbird.Value]) {
+        let tuple = expression.compile(table: table, queryingFullTextIndex: queryingFullTextIndex)
+        return tuple
+    }
 
     static func isNull<T: BlackbirdModel>(_ columnKeyPath: T.BlackbirdColumnKeyPath) -> BlackbirdModelColumnExpression<T> {
         BlackbirdModelColumnExpression<T>(column: columnKeyPath, sqlOperator: .isNull)
