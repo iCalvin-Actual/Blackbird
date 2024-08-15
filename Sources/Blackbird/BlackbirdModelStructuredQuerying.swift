@@ -817,7 +817,7 @@ public struct BlackbirdModelColumnExpression<Model: BlackbirdModel>: Sendable, B
     ///
     /// **Warning:** Do not use with very large numbers of values. The total number of arguments in a query cannot exceed its database's ``Blackbird/Database/maxQueryVariableCount``.
     public static func valueNotIn<T: BlackbirdModel>(_ column: T.BlackbirdColumnKeyPath, _ values: [Sendable]) -> BlackbirdModelColumnExpression<T> {
-        BlackbirdModelColumnExpression<T>(column: column, valueIn: values)
+        BlackbirdModelColumnExpression<T>(column: column, valueNotIn: values)
     }
 
     /// Specify an SQLite `LIKE` expression to be used in a `WHERE` clause.
