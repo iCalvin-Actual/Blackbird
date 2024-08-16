@@ -70,17 +70,14 @@ public struct BlackbirdModelOrderClause<T: BlackbirdModel>: Sendable, CustomDebu
     
     func orderByClause(table: Blackbird.Table) -> String {
         let columnName = table.keyPathToColumnName(keyPath: column)
-        let order: String = {
-            switch direction {
-            case .random:
-                return " RANDOM()"
-            case .descending:
-                return " DESC"
-            default:
-                return ""
-            }
-        }()
-        return "`\(columnName)`\(order)"
+        switch direction {
+        case .random:
+            return "RANDOM()"
+        case .descending:
+            return "'\(columnName)' DESC"
+        default:
+            return "'\(columnName)'"
+        }
     }
 
     public var debugDescription: String { orderByClause(table: T.table) }
