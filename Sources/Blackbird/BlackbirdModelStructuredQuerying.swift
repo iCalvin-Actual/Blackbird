@@ -53,6 +53,7 @@ public struct BlackbirdModelOrderClause<T: BlackbirdModel>: Sendable, CustomDebu
     public enum Direction: Sendable {
         case ascending
         case descending
+        case random
     }
     
     let column: T.BlackbirdColumnKeyPath
@@ -60,6 +61,7 @@ public struct BlackbirdModelOrderClause<T: BlackbirdModel>: Sendable, CustomDebu
     
     public static func ascending(_ column: T.BlackbirdColumnKeyPath) -> BlackbirdModelOrderClause { BlackbirdModelOrderClause(column, direction: .ascending) }
     public static func descending(_ column: T.BlackbirdColumnKeyPath) -> BlackbirdModelOrderClause { BlackbirdModelOrderClause(column, direction: .descending) }
+    public static func random(_ column: T.BlackbirdColumnKeyPath) -> BlackbirdModelOrderClause { BlackbirdModelOrderClause(column, direction: .random) }
     
     init(_ column: T.BlackbirdColumnKeyPath, direction: Direction) {
         self.column = column
@@ -68,7 +70,17 @@ public struct BlackbirdModelOrderClause<T: BlackbirdModel>: Sendable, CustomDebu
     
     func orderByClause(table: Blackbird.Table) -> String {
         let columnName = table.keyPathToColumnName(keyPath: column)
-        return "`\(columnName)`\(direction == .descending ? " DESC" : "")"
+        let order: String = {
+            switch direction {
+            case .random:
+                return " RAND()"
+            case .descending:
+                return " DESC"
+            default:
+                return ""
+            }
+        }()
+        return "`\(columnName)`\(order)"
     }
 
     public var debugDescription: String { orderByClause(table: T.table) }
