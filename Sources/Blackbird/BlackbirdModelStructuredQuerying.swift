@@ -73,7 +73,7 @@ public struct BlackbirdModelOrderClause<T: BlackbirdModel>: Sendable, CustomDebu
         let order: String = {
             switch direction {
             case .random:
-                return " RAND()"
+                return " RANDOM()"
             case .descending:
                 return " DESC"
             default:
