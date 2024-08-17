@@ -164,7 +164,7 @@ fileprivate struct DecodedStructuredQuery: Sendable {
         if let matching {
             if forMulticolumnPrimaryKey != nil { fatalError("Cannot combine forMulticolumnPrimaryKey with matching") }
 
-            let (whereClause, whereArguments) = matching.compile(table: table, queryingFullTextIndex: false)
+            let (whereClause, whereArguments) = matching.compile(table: table, queryingFullTextIndex: true)
             self.whereClause = whereClause
             self.whereArguments = whereArguments
             if let whereClause { clauses.append("WHERE \(whereClause)") }
