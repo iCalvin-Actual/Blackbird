@@ -749,6 +749,10 @@ public struct BlackbirdModelColumnExpression<Model: BlackbirdModel>: Sendable, B
     init(_ expressions: [BlackbirdModelColumnExpression<Model>]) {
         expression = BlackbirdCombiningExpression(expressions: expressions)
     }
+    
+    init(oneOf expressions: [BlackbirdModelColumnExpression<Model>]) {
+        expression = BlackbirdOneOfExpression(expressions: expressions)
+    }
 
     init() {
         expression = BlackbirdColumnNoExpression()
@@ -791,20 +795,24 @@ public struct BlackbirdModelColumnExpression<Model: BlackbirdModel>: Sendable, B
         BlackbirdModelColumnExpression<T>(column: columnKeyPath, sqlOperator: .greaterThanOrEqual, value: value)
     }
 
-    static func and<T: BlackbirdModel>(_ lhs: BlackbirdModelColumnExpression<T>, _ rhs: BlackbirdModelColumnExpression<T>) -> BlackbirdModelColumnExpression<T> {
+    public static func and<T: BlackbirdModel>(_ lhs: BlackbirdModelColumnExpression<T>, _ rhs: BlackbirdModelColumnExpression<T>) -> BlackbirdModelColumnExpression<T> {
         BlackbirdModelColumnExpression<T>(lhs: lhs, sqlOperator: .and, rhs: rhs)
     }
 
-    static func or<T: BlackbirdModel>(_ lhs: BlackbirdModelColumnExpression<T>, _ rhs: BlackbirdModelColumnExpression<T>) -> BlackbirdModelColumnExpression<T> {
+    public static func or<T: BlackbirdModel>(_ lhs: BlackbirdModelColumnExpression<T>, _ rhs: BlackbirdModelColumnExpression<T>) -> BlackbirdModelColumnExpression<T> {
         BlackbirdModelColumnExpression<T>(lhs: lhs, sqlOperator: .or, rhs: rhs)
     }
 
-    static func not<T: BlackbirdModel>(_ expression: BlackbirdModelColumnExpression<T>) -> BlackbirdModelColumnExpression<T> {
+    public static func not<T: BlackbirdModel>(_ expression: BlackbirdModelColumnExpression<T>) -> BlackbirdModelColumnExpression<T> {
         BlackbirdModelColumnExpression<T>(not: expression)
     }
     
     public static func combining<T: BlackbirdModel>(_ expressions: [BlackbirdModelColumnExpression<T>]) -> BlackbirdModelColumnExpression<T> {
         BlackbirdModelColumnExpression<T>(expressions)
+    }
+    
+    public static func oneOf<T: BlackbirdModel>(_ expressions: [BlackbirdModelColumnExpression<T>]) -> BlackbirdModelColumnExpression<T> {
+        BlackbirdModelColumnExpression<T>(oneOf: expressions)
     }
     
     /// Specify an `IN` condition to be used in a `WHERE` clause.
@@ -977,7 +985,24 @@ internal struct BlackbirdCombiningExpression<T: BlackbirdModel>: BlackbirdQueryE
             $0.compile(table: table, queryingFullTextIndex: queryingFullTextIndex)
         })
         
-        let wheres = compiledExpressions.compactMap({ $0.whereClause }).joined(separator: " AND ")
+        let wheres = "(\(compiledExpressions.compactMap({ $0.whereClause }).joined(separator: " AND ")))"
+        let values = compiledExpressions.reduce([]) { partialResult, model in
+            return partialResult + model.values
+        }
+        
+        return (whereClause: wheres, values: values)
+    }
+}
+
+internal struct BlackbirdOneOfExpression<T: BlackbirdModel>: BlackbirdQueryExpression {
+    let expressions: [BlackbirdModelColumnExpression<T>]
+    
+    func compile(table: Blackbird.Table, queryingFullTextIndex: Bool) -> (whereClause: String?, values: [Blackbird.Value]) {
+        let compiledExpressions = expressions.map({
+            $0.compile(table: table, queryingFullTextIndex: queryingFullTextIndex)
+        })
+        
+        let wheres = "(\(compiledExpressions.compactMap({ $0.whereClause }).joined(separator: " OR ")))"
         let values = compiledExpressions.reduce([]) { partialResult, model in
             return partialResult + model.values
         }
