@@ -74,9 +74,9 @@ public struct BlackbirdModelOrderClause<T: BlackbirdModel>: Sendable, CustomDebu
         case .random:
             return "RANDOM()"
         case .descending:
-            return "'\(columnName)' DESC"
+            return "\(columnName) DESC"
         default:
-            return "'\(columnName)' ASC"
+            return "\(columnName)"
         }
     }
 
