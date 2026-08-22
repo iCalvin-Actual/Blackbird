@@ -438,6 +438,52 @@ internal extension String {
         guard self.hasPrefix("_"), self.count > 1, let firstCharIndex = self.indices.first else { return self }
         return String(self.suffix(from: self.index(after: firstCharIndex)))
     }
+    
+    func isSingleEmoji() -> Bool {
+        let evaluate = self.removeQueryEncoding()
+        guard evaluate.count == 1, let firstScalar = evaluate.unicodeScalars.first else {
+            return false
+        }
+        
+        return firstScalar.properties.isEmoji && (firstScalar.value > 0x238C || evaluate.unicodeScalars.count > 1)
+    }
+
+    func unicodeValue() -> String? {
+        guard isSingleEmoji() else {
+            return nil
+        }
+        
+        return removeQueryEncoding().unicodeScalars.map { String(format: "U+%04X", $0.value) }.joined()
+    }
+
+    /// The `U+1F389`-style equivalent of a LIKE pattern wrapping a single
+    /// emoji, preserving whichever wildcards the caller used so a prefix,
+    /// suffix, or substring search stays what it was. `nil` when the pattern
+    /// isn't a single emoji.
+    func unicodeEscapedLikePattern() -> String? {
+        guard let unicode = unicodeValue() else {
+            return nil
+        }
+        let (leading, _, trailing) = splitLikeWildcards()
+        return leading + unicode + trailing
+    }
+
+    /// A LIKE pattern split into its leading `%` wildcard, literal body, and
+    /// trailing `%` wildcard. Each wildcard is empty when absent, so
+    /// `leading + body + trailing` always reproduces the original. The two
+    /// ends are independent: `%a`, `a%`, and `%a%` all yield a body of `a`.
+    func splitLikeWildcards() -> (leading: String, body: String, trailing: String) {
+        var body = Substring(self)
+        let leading = body.hasPrefix("%") ? "%" : ""
+        if !leading.isEmpty { body = body.dropFirst() }
+        let trailing = body.hasSuffix("%") ? "%" : ""
+        if !trailing.isEmpty { body = body.dropLast() }
+        return (leading, String(body), trailing)
+    }
+    
+    func removeQueryEncoding() -> String {
+        splitLikeWildcards().body
+    }
 }
 
 internal final class SchemaGenerator: Sendable {

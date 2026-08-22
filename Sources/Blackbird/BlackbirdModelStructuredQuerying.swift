@@ -949,6 +949,19 @@ internal struct BlackbirdColumnLikeExpression<T: BlackbirdModel>: BlackbirdQuery
     
     func compile(table: Blackbird.Table, queryingFullTextIndex: Bool) -> (whereClause: String?, values: [Blackbird.Value]) {
         let columnName = queryingFullTextIndex ? table.keyPathToFTSColumnName(keyPath: column) : table.keyPathToColumnName(keyPath: column)
+
+        // Some sources store emoji in their escaped "U+1F389" form rather than
+        // as the character itself. When the pattern is a single emoji, match
+        // either representation. Each pattern needs its own placeholder, and
+        // the alternate is parenthesized because compiled expressions are
+        // joined with bare AND/OR — an unwrapped OR here would bind loosely
+        // and silently widen any surrounding AND.
+        if let escapedPattern = pattern.unicodeEscapedLikePattern() {
+            return (
+                whereClause: "(`\(columnName)` LIKE ? OR `\(columnName)` LIKE ?)",
+                values: [.text(pattern), .text(escapedPattern)]
+            )
+        }
         return (whereClause: "`\(columnName)` LIKE ?", values: [.text(pattern)])
     }
 }
