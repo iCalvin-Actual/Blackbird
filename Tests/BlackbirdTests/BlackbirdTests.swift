@@ -176,6 +176,39 @@ final class BlackbirdTestTests: XCTestCase, @unchecked Sendable {
         db.debugPrintCachePerformanceMetrics()
     }
     
+    func testEmojiLikePattern() async throws {
+        let db = try Blackbird.Database.inMemoryDatabase()
+
+        // Row 1 stores the emoji itself, row 2 the escaped form some APIs return.
+        try await TestModelWithDescription(id: 1, title: "party \u{1F389} time", description: "literal").write(to: db)
+        try await TestModelWithDescription(id: 2, title: "party U+1F389 time", description: "escaped").write(to: db)
+        try await TestModelWithDescription(id: 3, title: "no emoji here", description: "neither").write(to: db)
+
+        // A single-emoji pattern matches both representations.
+        let both = try await TestModelWithDescription.read(from: db, matching: .like(\.$title, "%\u{1F389}%"))
+        XCTAssertEqual(Set(both.map(\.id)), [1, 2])
+
+        // A non-emoji pattern is unaffected, and still binds exactly one value.
+        let plain = try await TestModelWithDescription.read(from: db, matching: .like(\.$title, "%party%"))
+        XCTAssertEqual(Set(plain.map(\.id)), [1, 2, 3])
+
+        // The emoji clause is parenthesized, so a surrounding AND still narrows.
+        // Without the parens this reads as `LIKE a OR (LIKE b AND id == 2)`
+        // and row 1 leaks back in.
+        let narrowed = try await TestModelWithDescription.read(
+            from: db,
+            matching: .like(\.$title, "%\u{1F389}%") && \.$id == 2
+        )
+        XCTAssertEqual(narrowed.map(\.id), [2])
+
+        // A bare pattern carries no wildcards into the escaped alternate.
+        try await TestModelWithDescription(id: 4, title: "U+1F389", description: "bare").write(to: db)
+        let bare = try await TestModelWithDescription.read(from: db, matching: .like(\.$title, "\u{1F389}"))
+        XCTAssertEqual(bare.map(\.id), [4])
+
+        try await db.close()
+    }
+
     func testQueries() async throws {
         let allFilenames = Blackbird.Database.allFilePaths(for: sqliteFilename)
         print("SQLite filenames:\n\(allFilenames.joined(separator: "\n"))")

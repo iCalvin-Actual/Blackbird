@@ -438,6 +438,47 @@ internal extension String {
         guard self.hasPrefix("_"), self.count > 1, let firstCharIndex = self.indices.first else { return self }
         return String(self.suffix(from: self.index(after: firstCharIndex)))
     }
+    
+    func isSingleEmoji() -> Bool {
+        let evaluate = self.removeQueryEncoding()
+        guard evaluate.count == 1, let firstScalar = evaluate.unicodeScalars.first else {
+            return false
+        }
+        
+        return firstScalar.properties.isEmoji && (firstScalar.value > 0x238C || evaluate.unicodeScalars.count > 1)
+    }
+
+    func unicodeValue() -> String? {
+        guard isSingleEmoji() else {
+            return nil
+        }
+        
+        return removeQueryEncoding().unicodeScalars.map { String(format: "U+%04X", $0.value) }.joined()
+    }
+
+    /// The `U+1F389`-style equivalent of a LIKE pattern wrapping a single
+    /// emoji, preserving the caller's surrounding wildcards so a substring
+    /// search stays a substring search. `nil` when the pattern isn't a
+    /// single emoji.
+    func unicodeEscapedLikePattern() -> String? {
+        guard let unicode = unicodeValue() else {
+            return nil
+        }
+        return isQueryEncoded() ? "%\(unicode)%" : unicode
+    }
+
+    /// Whether the receiver is wrapped in the `%…%` wildcards that
+    /// `removeQueryEncoding()` strips.
+    func isQueryEncoded() -> Bool {
+        count > 1 && hasPrefix("%") && hasSuffix("%")
+    }
+    
+    func removeQueryEncoding() -> String {
+        guard isQueryEncoded() else {
+            return self
+        }
+        return String(self.dropFirst().dropLast())
+    }
 }
 
 internal final class SchemaGenerator: Sendable {
