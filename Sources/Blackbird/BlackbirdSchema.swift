@@ -457,27 +457,32 @@ internal extension String {
     }
 
     /// The `U+1F389`-style equivalent of a LIKE pattern wrapping a single
-    /// emoji, preserving the caller's surrounding wildcards so a substring
-    /// search stays a substring search. `nil` when the pattern isn't a
-    /// single emoji.
+    /// emoji, preserving whichever wildcards the caller used so a prefix,
+    /// suffix, or substring search stays what it was. `nil` when the pattern
+    /// isn't a single emoji.
     func unicodeEscapedLikePattern() -> String? {
         guard let unicode = unicodeValue() else {
             return nil
         }
-        return isQueryEncoded() ? "%\(unicode)%" : unicode
+        let (leading, _, trailing) = splitLikeWildcards()
+        return leading + unicode + trailing
     }
 
-    /// Whether the receiver is wrapped in the `%…%` wildcards that
-    /// `removeQueryEncoding()` strips.
-    func isQueryEncoded() -> Bool {
-        count > 1 && hasPrefix("%") && hasSuffix("%")
+    /// A LIKE pattern split into its leading `%` wildcard, literal body, and
+    /// trailing `%` wildcard. Each wildcard is empty when absent, so
+    /// `leading + body + trailing` always reproduces the original. The two
+    /// ends are independent: `%a`, `a%`, and `%a%` all yield a body of `a`.
+    func splitLikeWildcards() -> (leading: String, body: String, trailing: String) {
+        var body = Substring(self)
+        let leading = body.hasPrefix("%") ? "%" : ""
+        if !leading.isEmpty { body = body.dropFirst() }
+        let trailing = body.hasSuffix("%") ? "%" : ""
+        if !trailing.isEmpty { body = body.dropLast() }
+        return (leading, String(body), trailing)
     }
     
     func removeQueryEncoding() -> String {
-        guard isQueryEncoded() else {
-            return self
-        }
-        return String(self.dropFirst().dropLast())
+        splitLikeWildcards().body
     }
 }
 

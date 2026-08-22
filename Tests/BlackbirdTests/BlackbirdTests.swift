@@ -179,32 +179,55 @@ final class BlackbirdTestTests: XCTestCase, @unchecked Sendable {
     func testEmojiLikePattern() async throws {
         let db = try Blackbird.Database.inMemoryDatabase()
 
-        // Row 1 stores the emoji itself, row 2 the escaped form some APIs return.
-        try await TestModelWithDescription(id: 1, title: "party \u{1F389} time", description: "literal").write(to: db)
-        try await TestModelWithDescription(id: 2, title: "party U+1F389 time", description: "escaped").write(to: db)
-        try await TestModelWithDescription(id: 3, title: "no emoji here", description: "neither").write(to: db)
+        // Each emoji row is written twice: once storing the character itself,
+        // once storing the escaped form some APIs return. A `.like` pattern of
+        // one emoji should find both. Note that "U+1F389" is a prefix and a
+        // suffix of itself, so row 8 legitimately matches every pattern below.
+        let rows: [(Int, String)] = [
+            (1, "party \u{1F389} time"),
+            (2, "party U+1F389 time"),
+            (3, "no emoji here"),
+            (4, "\u{1F389} leads"),
+            (5, "U+1F389 leads"),
+            (6, "trails \u{1F389}"),
+            (7, "trails U+1F389"),
+            (8, "U+1F389"),
+        ]
+        for (id, title) in rows {
+            try await TestModelWithDescription(id: id, title: title, description: "").write(to: db)
+        }
 
-        // A single-emoji pattern matches both representations.
-        let both = try await TestModelWithDescription.read(from: db, matching: .like(\.$title, "%\u{1F389}%"))
-        XCTAssertEqual(Set(both.map(\.id)), [1, 2])
+        func ids(_ pattern: String) async throws -> Set<Int> {
+            let matches = try await TestModelWithDescription.read(from: db, matching: .like(\.$title, pattern))
+            return Set(matches.map(\.id))
+        }
 
-        // A non-emoji pattern is unaffected, and still binds exactly one value.
-        let plain = try await TestModelWithDescription.read(from: db, matching: .like(\.$title, "%party%"))
-        XCTAssertEqual(Set(plain.map(\.id)), [1, 2, 3])
+        // Substring, prefix, suffix, and exact patterns each keep their own
+        // shape when the escaped alternate is generated.
+        let substring = try await ids("%\u{1F389}%")
+        XCTAssertEqual(substring, [1, 2, 4, 5, 6, 7, 8])
 
-        // The emoji clause is parenthesized, so a surrounding AND still narrows.
-        // Without the parens this reads as `LIKE a OR (LIKE b AND id == 2)`
-        // and row 1 leaks back in.
+        let prefix = try await ids("\u{1F389}%")
+        XCTAssertEqual(prefix, [4, 5, 8])
+
+        let suffix = try await ids("%\u{1F389}")
+        XCTAssertEqual(suffix, [6, 7, 8])
+
+        let exact = try await ids("\u{1F389}")
+        XCTAssertEqual(exact, [8])
+
+        // A non-emoji pattern is untouched, and still binds exactly one value.
+        let plain = try await ids("%party%")
+        XCTAssertEqual(plain, [1, 2])
+
+        // The emoji clause is parenthesized, so a surrounding AND still
+        // narrows. Without the parens this reads as
+        // `LIKE a OR (LIKE b AND id == 2)` and the other rows leak back in.
         let narrowed = try await TestModelWithDescription.read(
             from: db,
             matching: .like(\.$title, "%\u{1F389}%") && \.$id == 2
         )
         XCTAssertEqual(narrowed.map(\.id), [2])
-
-        // A bare pattern carries no wildcards into the escaped alternate.
-        try await TestModelWithDescription(id: 4, title: "U+1F389", description: "bare").write(to: db)
-        let bare = try await TestModelWithDescription.read(from: db, matching: .like(\.$title, "\u{1F389}"))
-        XCTAssertEqual(bare.map(\.id), [4])
 
         try await db.close()
     }
