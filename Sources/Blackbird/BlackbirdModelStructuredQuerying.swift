@@ -164,7 +164,12 @@ fileprivate struct DecodedStructuredQuery: Sendable {
         if let matching {
             if forMulticolumnPrimaryKey != nil { fatalError("Cannot combine forMulticolumnPrimaryKey with matching") }
 
-            let (whereClause, whereArguments) = matching.compile(table: table, queryingFullTextIndex: true)
+            // This is the general structured-query builder, not the FTS one
+            // (see BlackbirdModelSearch). Compiling as an FTS query here makes
+            // `keyPathToFTSColumnName` trap on any column that isn't in the
+            // model's `fullTextSearchableColumns` — which is every column of
+            // every model that doesn't declare one.
+            let (whereClause, whereArguments) = matching.compile(table: table, queryingFullTextIndex: false)
             self.whereClause = whereClause
             self.whereArguments = whereArguments
             if let whereClause { clauses.append("WHERE \(whereClause)") }
