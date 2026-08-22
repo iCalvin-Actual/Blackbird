@@ -160,12 +160,16 @@ extension UInt32: BlackbirdColumnWrappable, BlackbirdStorableAsInteger {
 
 /// Declares an enum as compatible with Blackbird column storage, with a raw type of `String` or `URL`.
 public protocol BlackbirdStringEnum: RawRepresentable, CaseIterable, BlackbirdColumnWrappable where RawValue: BlackbirdStorableAsText {
-    associatedtype RawValue
+    // `RawValue` is inherited from `RawRepresentable` and constrained by the
+    // `where` clause above. Redeclaring it here shadows the inherited
+    // associated type with a separate requirement that the compiler cannot
+    // infer from a raw-value enum, breaking every conformance.
 }
 
 /// Declares an enum as compatible with Blackbird column storage, with a Blackbird-compatible raw integer type such as `Int`.
 public protocol BlackbirdIntegerEnum: RawRepresentable, CaseIterable, BlackbirdColumnWrappable where RawValue: BlackbirdStorableAsInteger {
-    associatedtype RawValue
+    // See the note on `BlackbirdStringEnum`: `RawValue` must not be
+    // redeclared here.
     static func unifiedRawValue(from unifiedRepresentation: Int64) -> RawValue
 }
 

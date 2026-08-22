@@ -105,8 +105,11 @@ internal protocol ColumnWrapper: WrappedType {
         let container = try decoder.singleValueContainer()
         let value = try container.decode(T.self)
         _value = value
-        if let sqliteDecoder = decoder as? BlackbirdSQLiteDecoder {
-            state = Blackbird.Locked(ColumnState(hasChanged: false, lastUsedDatabase: sqliteDecoder.database))
+        // Only a decode that came from an actual database can claim the column
+        // is unchanged. A row decoded without one (see `init(_ row:)`) has no
+        // database to be in sync with, so it falls through to `hasChanged`.
+        if let sqliteDecoder = decoder as? BlackbirdSQLiteDecoder, let database = sqliteDecoder.database {
+            state = Blackbird.Locked(ColumnState(hasChanged: false, lastUsedDatabase: database))
         } else {
             state = Blackbird.Locked(ColumnState(hasChanged: true, lastUsedDatabase: nil))
         }

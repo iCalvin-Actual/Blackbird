@@ -289,6 +289,25 @@ internal extension BlackbirdModel {
 extension BlackbirdModel {
     public typealias ChangePublisher = Blackbird.ModelChangePublisher<Self>
 
+    /// Reinitialize a model from a row returned by a column-limited query.
+    ///
+    /// Decodes the row through the model's `Codable` conformance, so every
+    /// conforming type gets this for free. Types needing custom mapping may
+    /// still implement `init(_:)` themselves to override it.
+    ///
+    /// The resulting instance is not associated with any database, so all of
+    /// its columns report as changed until it is written.
+    ///
+    /// - Note: Traps if the row cannot satisfy the model, matching the
+    ///   behavior of ``Blackbird/ModelRow``'s subscripts.
+    public init(_ row: Blackbird.ModelRow<Self>) {
+        do {
+            self = try Self(from: BlackbirdSQLiteDecoder(database: nil, row: row.row))
+        } catch {
+            fatalError("\(String(describing: Self.self)): cannot initialize from Blackbird.ModelRow: \(error)")
+        }
+    }
+
     public static var tableName: String { String(describing: Self.self) }
     public static var primaryKey: [BlackbirdColumnKeyPath] { [] }
     public static var indexes: [[BlackbirdColumnKeyPath]] { [] }

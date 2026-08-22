@@ -45,9 +45,9 @@ internal class BlackbirdSQLiteDecoder: Decoder {
     public var codingPath: [CodingKey] = []
     public var userInfo: [CodingUserInfoKey: Any] = [:]
 
-    let database: Blackbird.Database
+    let database: Blackbird.Database?
     let row: Blackbird.Row
-    init(database: Blackbird.Database, row: Blackbird.Row, codingPath: [CodingKey] = []) {
+    init(database: Blackbird.Database?, row: Blackbird.Row, codingPath: [CodingKey] = []) {
         self.database = database
         self.row = row
         self.codingPath = codingPath
@@ -79,10 +79,10 @@ fileprivate struct BlackbirdSQLiteSingleValueDecodingContainer: SingleValueDecod
     }
 
     var codingPath: [CodingKey] = []
-    let database: Blackbird.Database
+    let database: Blackbird.Database?
     var row: Blackbird.Row
     
-    init(codingPath: [CodingKey], database: Blackbird.Database, row: Blackbird.Row) {
+    init(codingPath: [CodingKey], database: Blackbird.Database?, row: Blackbird.Row) {
         self.codingPath = codingPath
         self.database = database
         self.row = row
@@ -173,10 +173,10 @@ fileprivate struct BlackbirdSQLiteSingleValueDecodingContainer: SingleValueDecod
 fileprivate class BlackbirdSQLiteKeyedDecodingContainer<K: CodingKey>: KeyedDecodingContainerProtocol {
     typealias Key = K
     let codingPath: [CodingKey]
-    let database: Blackbird.Database
+    let database: Blackbird.Database?
     var row: Blackbird.Row
     
-    init(codingPath: [CodingKey] = [], database: Blackbird.Database, row: Blackbird.Row) {
+    init(codingPath: [CodingKey] = [], database: Blackbird.Database?, row: Blackbird.Row) {
         self.database = database
         self.row = row
         self.codingPath = codingPath
